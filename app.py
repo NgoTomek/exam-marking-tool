@@ -329,22 +329,6 @@ def display_student_progress(student_id):
 ###############################################################################
 
 API_KEY = "AIzaSyCKl7FvCPoNBklNf1klaImZIbcGFXuTlYY"  # Replace with your actual key
-import platform
-import shutil
-
-# Automatically detect Poppler installation
-if platform.system() == "Windows":
-    detected_poppler = shutil.which("pdftoppm")
-    if detected_poppler:
-        POPPLER_PATH = detected_poppler.rsplit("\\", 1)[0]  # Extract directory path
-    else:
-        POPPLER_PATH = r"C:\poppler-24.02.0\Library\bin"  # Fallback path
-elif platform.system() == "Darwin":  # macOS
-    POPPLER_PATH = shutil.which("pdftoppm")
-else:  # Linux
-    POPPLER_PATH = shutil.which("pdftoppm")
-
-print(f"Using Poppler path: {POPPLER_PATH}")
 
 
 
@@ -404,18 +388,20 @@ CONFIGS = {
 #                  FILE PROCESSING
 ###############################################################################
 
+POPPLER_PATH = "/usr/bin"
+
 def process_document(file):
     """Convert uploaded file (PDF/Image) to list of PIL Images."""
     try:
         file_bytes = file.read()
-        file.seek(0)  # Reset file pointer for potential reuse
+        file.seek(0)
 
         if file.type == "application/pdf":
             st.write("Converting PDF using Poppler...")
             try:
                 images = convert_from_bytes(
                     file_bytes,
-                    poppler_path="/usr/bin/pdftoppm",  # Ensure correct Poppler path
+                    poppler_path=POPPLER_PATH,  # Use updated path
                     dpi=200
                 )
                 if not images:
