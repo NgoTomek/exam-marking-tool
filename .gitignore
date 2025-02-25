@@ -1,0 +1,18 @@
+# Database files
+*.db
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+
+# IDE files
+.idea/
+.vscode/
+
+# Temporary files
+.DS_Store
