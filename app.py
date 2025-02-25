@@ -346,7 +346,15 @@ CONFIGS = {
                 "question_identifier": ["response part 1", "response part 2", ...]
             }
         }
-        Only JSON, no extra text. 
+        Notes:
+        - Include all written responses, working, explanations, and intermediate steps
+        - For mathematical expressions:
+          * Use single-line format where possible (e.g., "sum(n=1 to 200)")
+          * Preserve subscripts with underscore (e.g., "a_2")
+          * Use ^ for superscripts (e.g., "x^2")
+          * Use simple text for mathematical symbols (e.g., "sqrt" for √)
+        - Format all responses as valid JSON strings without line breaks
+        - Only include the JSON output, with no additional text
         """,
         "generation_config": {
             "temperature": 0.1,
@@ -356,24 +364,25 @@ CONFIGS = {
     },
     "markscheme": {
         "prompt": """
-        Analyze this mark scheme for an exam. 
-        Return a JSON object with exact format:
+        Analyze this mark scheme image for exam questions.
+        Return a JSON object with the exact structure:
         {
             "exam_code": "string",
             "marking": {
                 "question_identifier": [
                     {
-                        "points": 1,
+                        "points": number,
                         "criteria": "string",
                         "answer": "string",
-                        "mark_type": "string"
+                        "method_marks": boolean
                     }
                 ]
             }
         }
-        Where mark_type is one of "A1","B1","M1". 
-        Split multi-mark lines into multiple entries. 
-        Only JSON, no extra text.
+        Notes:
+        - The "answer" field should contain the exact expected answer or working.
+        - "method_marks" indicates if marks are awarded for showing the working process.
+        - Only include the JSON output, with no additional text.
         """,
         "generation_config": {
             "temperature": 0.1,
