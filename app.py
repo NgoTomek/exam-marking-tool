@@ -334,7 +334,7 @@ import shutil
 
 # Dynamically determine the Poppler path
 if platform.system() == "Windows":
-    POPPLER_PATH = r"C:\poppler-24.02.0\Library\bin"  # Update this path if needed
+    POPPLER_PATH = r"C:\poppler-23.05.0\Library\bin"  # Update this path if needed
 elif platform.system() == "Darwin":  # macOS
     POPPLER_PATH = shutil.which("pdftoppm")
 else:  # Linux
