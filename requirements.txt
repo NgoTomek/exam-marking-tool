@@ -1,0 +1,6 @@
+streamlit
+google-generativeai
+pdf2image
+pillow
+sqlite3
+pandas
