@@ -405,16 +405,36 @@ CONFIGS = {
 ###############################################################################
 
 def process_document(file):
-    """Read a single file (PDF or Image) -> list of PIL images."""
-    file_bytes = file.read()
-    file.seek(0)
+    """Convert uploaded file (PDF/Image) to list of PIL Images."""
+    try:
+        file_bytes = file.read()
+        file.seek(0)  # Reset file pointer for potential reuse
 
-    # check if PDF
-    if file.type == "application/pdf":
-        try:
-            pages = convert_from_bytes(file_bytes, poppler_path=POPPLER_PATH, dpi=200)
-        except Exception as e:
-            st.error(f"PDF conversion error: {str(e)}")
+        if file.type == "application/pdf":
+            st.write("Converting PDF using Poppler...")
+            try:
+                images = convert_from_bytes(
+                    file_bytes,
+                    poppler_path="/usr/bin/pdftoppm",  # Ensure correct Poppler path
+                    dpi=200
+                )
+                if not images:
+                    st.error("PDF conversion returned no images. Check Poppler installation.")
+                return images
+            except Exception as pdf_error:
+                st.error(f"PDF conversion failed: {str(pdf_error)}")
+                return None
+        else:
+            try:
+                image = Image.open(BytesIO(file_bytes))
+                return [image]
+            except Exception as img_error:
+                st.error(f"Image loading failed: {str(img_error)}")
+                return None
+    except Exception as e:
+        st.error(f"Document processing error: {str(e)}")
+        return None
+
 
 
 
