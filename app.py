@@ -328,7 +328,7 @@ def display_student_progress(student_id):
 #                   GEMINI PROMPT SETTINGS
 ###############################################################################
 
-API_KEY = "YOUR_GEMINI_KEY_HERE"  # Replace with your actual key
+API_KEY = "AIzaSyCKl7FvCPoNBklNf1klaImZIbcGFXuTlYY"  # Replace with your actual key
 POPPLER_PATH = r"C:\poppler-23.05.0\poppler-24.08.0\Library\bin"  # Adjust as needed
 
 genai.configure(api_key=API_KEY)
