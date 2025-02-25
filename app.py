@@ -444,7 +444,7 @@ def get_gemini_response(content, mode):
     try:
         conf = CONFIGS[mode]["generation_config"]
         model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash-lite-preview-02-05",
+            model_name="gemini-2.0-flash-lite",
             generation_config=conf
         )
         resp = model.generate_content(**content)
