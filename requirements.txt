@@ -9,4 +9,3 @@ python-dateutil
 jinja2
 pyyaml
 sqlalchemy
-poppler
