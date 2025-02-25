@@ -332,19 +332,20 @@ API_KEY = "AIzaSyCKl7FvCPoNBklNf1klaImZIbcGFXuTlYY"  # Replace with your actual 
 import platform
 import shutil
 
-# Dynamically detect Poppler
+# Automatically detect Poppler installation
 if platform.system() == "Windows":
-    detected_poppler_path = shutil.which("pdftoppm")
-    if detected_poppler_path:
-        POPPLER_PATH = detected_poppler_path.rsplit("\\", 1)[0]  # Get directory path
+    detected_poppler = shutil.which("pdftoppm")
+    if detected_poppler:
+        POPPLER_PATH = detected_poppler.rsplit("\\", 1)[0]  # Extract directory path
     else:
-        POPPLER_PATH = r"C:\poppler-23.05.0\poppler-24.08.0\Library\bin"  # Default fallback
+        POPPLER_PATH = r"C:\poppler-24.02.0\Library\bin"  # Fallback path
 elif platform.system() == "Darwin":  # macOS
     POPPLER_PATH = shutil.which("pdftoppm")
 else:  # Linux
     POPPLER_PATH = shutil.which("pdftoppm")
 
 print(f"Using Poppler path: {POPPLER_PATH}")
+
 
 
 
@@ -411,23 +412,10 @@ def process_document(file):
     # check if PDF
     if file.type == "application/pdf":
         try:
-            pages = convert_from_bytes(file_bytes, poppler_path=POPPLER_PATH, dpi=200) if POPPLER_PATH else convert_from_bytes(file_bytes, dpi=200)
-
-            return pages
-        except PDFPageCountError as e:
+            pages = convert_from_bytes(file_bytes, poppler_path=POPPLER_PATH, dpi=200)
+        except Exception as e:
             st.error(f"PDF conversion error: {str(e)}")
-            return []
-        except Exception as e:
-            st.error(f"Error converting PDF: {e}")
-            return []
-    else:
-        # assume image
-        try:
-            image = Image.open(BytesIO(file_bytes))
-            return [image]
-        except Exception as e:
-            st.error(f"Image loading failed: {e}")
-            return []
+
 
 
 def create_gemini_content(images, mode, prompt_text=None):
