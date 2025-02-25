@@ -329,7 +329,19 @@ def display_student_progress(student_id):
 ###############################################################################
 
 API_KEY = "AIzaSyCKl7FvCPoNBklNf1klaImZIbcGFXuTlYY"  # Replace with your actual key
-POPPLER_PATH = r"C:\poppler-23.05.0\poppler-24.08.0\Library\bin"  # Adjust as needed
+import platform
+import shutil
+
+# Dynamically determine the Poppler path
+if platform.system() == "Windows":
+    POPPLER_PATH = r"C:\poppler-24.02.0\Library\bin"  # Update this path if needed
+elif platform.system() == "Darwin":  # macOS
+    POPPLER_PATH = shutil.which("pdftoppm")
+else:  # Linux
+    POPPLER_PATH = shutil.which("pdftoppm")
+
+print(f"Using Poppler path: {POPPLER_PATH}")
+
 
 genai.configure(api_key=API_KEY)
 
@@ -394,7 +406,8 @@ def process_document(file):
     # check if PDF
     if file.type == "application/pdf":
         try:
-            pages = convert_from_bytes(file_bytes, poppler_path=POPPLER_PATH, dpi=200)
+            pages = convert_from_bytes(file_bytes, poppler_path=POPPLER_PATH, dpi=200) if POPPLER_PATH else convert_from_bytes(file_bytes, dpi=200)
+
             return pages
         except PDFPageCountError as e:
             st.error(f"PDF conversion error: {str(e)}")
