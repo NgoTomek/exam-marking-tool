@@ -332,15 +332,20 @@ API_KEY = "AIzaSyCKl7FvCPoNBklNf1klaImZIbcGFXuTlYY"  # Replace with your actual 
 import platform
 import shutil
 
-# Dynamically determine the Poppler path
+# Dynamically detect Poppler
 if platform.system() == "Windows":
-    POPPLER_PATH = r"C:\poppler-24.08.0\Library\bin"  # Update this path if needed
+    detected_poppler_path = shutil.which("pdftoppm")
+    if detected_poppler_path:
+        POPPLER_PATH = detected_poppler_path.rsplit("\\", 1)[0]  # Get directory path
+    else:
+        POPPLER_PATH = r"C:\poppler-23.05.0\poppler-24.08.0\Library\bin"  # Default fallback
 elif platform.system() == "Darwin":  # macOS
     POPPLER_PATH = shutil.which("pdftoppm")
 else:  # Linux
     POPPLER_PATH = shutil.which("pdftoppm")
 
 print(f"Using Poppler path: {POPPLER_PATH}")
+
 
 
 genai.configure(api_key=API_KEY)
