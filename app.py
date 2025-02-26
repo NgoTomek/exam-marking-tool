@@ -581,88 +581,101 @@ def display_results(eval_results):
 #                                MAIN APP
 ###############################################################################
 
+import streamlit as st
+
 def main():
-    st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Select Page", ["Exam Grading", "Analytics", "Student Progress"])
+    # Set page layout to wide for better UI
+    st.set_page_config(
+        page_title="Exam Marking System",
+        page_icon="📄",
+        layout="wide"
+    )
 
-    if page == "Exam Grading":
-        st.title("Exam Answer Comparison System")
+    st.title("📖 AI-Powered Exam Marking Tool")
 
-        # Student ID
-        student_id = st.text_input("Student ID (e.g. 'stu001')", key="student_id")
+    # Create tab-based navigation instead of sidebar
+    tab1, tab2, tab3 = st.tabs(["📂 Exam Grading", "📊 Analytics", "📈 Student Progress"])
+
+    # ------------------ EXAM GRADING TAB ------------------
+    with tab1:
+        st.header("📂 Exam Grading")
+
+        # Student ID Input
+        student_id = st.text_input("🆔 Enter Student ID (e.g. 'stu001')", key="student_id")
         if not student_id:
-            st.warning("Enter a Student ID to proceed.")
+            st.warning("⚠️ Please enter a Student ID to proceed.")
             return
 
-        # Student Answers
-        st.subheader("Upload Student Answers")
-        student_files = st.file_uploader("PDF/Image for Student Answers",
-                                         type=["pdf","png","jpg","jpeg"],
+        # File Uploaders
+        st.subheader("📄 Upload Student Answers")
+        student_files = st.file_uploader("📥 Upload PDF/Image for Student Answers",
+                                         type=["pdf", "png", "jpg", "jpeg"],
                                          accept_multiple_files=True)
 
-        # Mark Scheme
-        st.subheader("Upload Mark Scheme")
-        scheme_file = st.file_uploader("PDF/Image for Mark Scheme",
-                                       type=["pdf","png","jpg","jpeg"])
+        st.subheader("📜 Upload Mark Scheme")
+        scheme_file = st.file_uploader("📥 Upload PDF/Image for Mark Scheme",
+                                       type=["pdf", "png", "jpg", "jpeg"])
 
-        # Compare button
-        if st.button("Process & Compare", disabled=not (student_files and scheme_file)):
-            with st.spinner("Processing Student Answers..."):
+        # Process Button
+        if st.button("🚀 Process & Compare", disabled=not (student_files and scheme_file)):
+            with st.spinner("🔄 Processing Student Answers..."):
                 all_student_imgs = []
                 for sf in student_files:
                     pimgs = process_document(sf)
                     if not pimgs:
-                        st.error(f"Failed to process {sf.name}.")
+                        st.error(f"❌ Failed to process {sf.name}.")
                         continue
                     all_student_imgs.extend(pimgs)
 
             if not all_student_imgs:
-                st.error("No valid student images found or conversion failed.")
+                st.error("❌ No valid student images found or conversion failed.")
                 return
 
-            with st.spinner("Extracting student responses..."):
+            with st.spinner("🧠 Extracting student responses..."):
                 student_content = create_gemini_content(all_student_imgs, "student")
                 student_data = get_gemini_response(student_content, "student")
 
-            if not student_data:
-                st.error("Failed to extract student answers from the document.")
+            if not student_data or not student_data.get("answers"):
+                st.error("❌ Failed to extract student answers from the document.")
                 return
 
-            with st.spinner("Processing Mark Scheme..."):
+            with st.spinner("📜 Processing Mark Scheme..."):
                 scheme_imgs = process_document(scheme_file)
                 if not scheme_imgs:
-                    st.error("Failed to process mark scheme document.")
+                    st.error("❌ Failed to process mark scheme document.")
                     return
 
-            with st.spinner("Extracting mark scheme..."):
+            with st.spinner("🧠 Extracting mark scheme..."):
                 scheme_content = create_gemini_content(scheme_imgs, "markscheme")
                 scheme_data = get_gemini_response(scheme_content, "markscheme")
 
-            if not scheme_data:
-                st.error("Failed to extract mark scheme data from the document.")
+            if not scheme_data or not scheme_data.get("marking"):
+                st.error("❌ Failed to extract mark scheme data from the document.")
                 return
 
-            with st.spinner("Comparing Student vs Mark Scheme..."):
+            with st.spinner("⚖️ Comparing Student vs Mark Scheme..."):
                 comparison = compare_answers(student_data, scheme_data)
 
             if not comparison:
-                st.error("Failed to evaluate answers. Please check the input files.")
+                st.error("❌ Failed to evaluate answers. Please check the input files.")
                 return
 
-            st.success("Processing complete!")
+            st.success("✅ Processing complete!")
             display_results(comparison)
 
+    # ------------------ ANALYTICS TAB ------------------
+    with tab2:
+        st.header("📊 Exam Analytics")
+        display_analytics_dashboard()  # Call existing function
 
+    # ------------------ STUDENT PROGRESS TAB ------------------
+    with tab3:
+        st.header("📈 Student Progress")
 
-    elif page == "Analytics":
-        display_analytics_dashboard()
-
-    else:  # Student Progress
-        st.title("Student Progress View")
-        sid = st.text_input("Enter a Student ID:")
+        sid = st.text_input("🔍 Enter a Student ID:")
         if sid:
             display_student_progress(sid)
 
-
 if __name__ == "__main__":
     main()
+
