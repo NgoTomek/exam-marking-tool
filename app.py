@@ -461,7 +461,7 @@ def create_gemini_content(images, mode, prompt_text=None):
 
 
 def get_gemini_response(content, mode):
-    """Call Gemini with the built content and parse JSON."""
+    """Call Gemini with the built content and parse JSON safely."""
     try:
         conf = CONFIGS[mode]["generation_config"]
         model = genai.GenerativeModel(
@@ -470,21 +470,25 @@ def get_gemini_response(content, mode):
         )
         resp = model.generate_content(**content)
 
-        # Clean up any markdown fences
+        # Ensure response is valid
+        if not resp or not resp.text:
+            st.error("Received empty response from Gemini.")
+            return None
+
         text = resp.text.strip()
         if text.startswith("```json"):
             text = text[7:].strip()
         if text.endswith("```"):
             text = text[:-3].strip()
 
-        # try to parse
+        # Try parsing JSON
         try:
             data = json.loads(text)
             return data
         except json.JSONDecodeError as e:
-            st.error(f"JSON parse error: {e}")
-            st.write("Raw text:")
-            st.code(resp.text)
+            st.error(f"JSON parsing failed: {e}")
+            st.write("Raw response from Gemini:")
+            st.code(text)
             return None
 
     except Exception as e:
@@ -492,36 +496,35 @@ def get_gemini_response(content, mode):
         return None
 
 
+
 def compare_answers(student_data, markscheme_data):
-    """
-    Send an additional prompt to GPT with the student's answers & official marking,
-    returning a structure that you can interpret for awarding points.
-    For simplicity, we'll do a basic approach or skip advanced partial marks here.
-    """
+    """Compare student answers against the mark scheme while handling empty responses."""
     student_answers = student_data.get("answers", {})
     marking = markscheme_data.get("marking", {})
 
-    # We'll build a new prompt to let Gemini evaluate.
+    if not student_answers:
+        st.warning("No student answers detected. Please ensure the student response file is correct.")
+        return {}
+
     compare_prompt = f"""
     You are an examiner. Compare the following student answers with the official marking.
     Return JSON of the form:
-    {{
-      "evaluations": {{
-        "question_id": {{
-           "points": <float>,
-           "total_possible": <float>,
-           "feedback": [
-             {{
-               "criterion": "string",
-               "points_awarded": <float>,
-               "max_points": <float>,
-               "comment": "string"
-             }}
-           ]
-        }},
-        ...
-      }}
-    }}
+    {json.dumps({
+        "evaluations": {
+            "question_id": {
+                "points": 0,
+                "total_possible": 0,
+                "feedback": [
+                    {
+                        "criterion": "string",
+                        "points_awarded": 0,
+                        "max_points": 0,
+                        "comment": "string"
+                    }
+                ]
+            }
+        }
+    }, indent=2)}
 
     STUDENT ANSWERS:
     {json.dumps(student_answers, indent=2)}
@@ -529,49 +532,49 @@ def compare_answers(student_data, markscheme_data):
     OFFICIAL MARKING:
     {json.dumps(marking, indent=2)}
 
-    Evaluate carefully, awarding points for correct steps, partial credit for correct method, etc.
+    Ensure the response follows the exact JSON format.
     """
+    
     content = create_gemini_content([], "markscheme", compare_prompt)
     results = get_gemini_response(content, "markscheme")
 
-    if results and "evaluations" in results:
-        return results["evaluations"]
-    else:
-        return {}
+    return results.get("evaluations", {}) if results else {}
+
 
 
 def display_results(eval_results):
-    """
-    Show the final comparison results.
-    eval_results: { "1a": {"points":..., "total_possible":..., "feedback": [...]} }
-    """
+    """Enhance results display with better formatting and expandable sections."""
     if not eval_results:
         st.warning("No evaluation results returned.")
         return
-    total_points = 0
-    total_possible = 0
 
-    st.header("Detailed Comparison")
+    total_points = sum(q["points"] for q in eval_results.values())
+    total_possible = sum(q["total_possible"] for q in eval_results.values())
+
+    st.subheader("Overall Score")
+    st.metric(label="Total Score", value=f"{total_points:.2f} / {total_possible:.2f}")
+    
+    if total_possible > 0:
+        pct = (total_points / total_possible) * 100
+        st.progress(pct / 100)
+        st.subheader(f"Final Percentage: {pct:.1f}%")
+    else:
+        st.info("No marks assigned in the comparison.")
+
+    st.header("Detailed Feedback")
     for qid, qres in sorted(eval_results.items()):
         pts = qres.get("points", 0)
         maxp = qres.get("total_possible", 0)
-        total_points += pts
-        total_possible += maxp
 
-        with st.expander(f"Question {qid} => {pts}/{maxp} marks", expanded=False):
+        with st.expander(f"Question {qid} - Score: {pts}/{maxp}"):
             feedback_list = qres.get("feedback", [])
             for fb in feedback_list:
                 crit = fb.get("criterion", "No criterion")
                 pa = fb.get("points_awarded", 0)
                 mp = fb.get("max_points", 0)
-                comm = fb.get("comment", "")
-                st.write(f"**{crit}**: {pa}/{mp} marks => {comm}")
+                comm = fb.get("comment", "No comment")
 
-    if total_possible > 0:
-        pct = (total_points / total_possible) * 100
-        st.subheader(f"Overall Score: {total_points:.2f}/{total_possible:.2f} ({pct:.1f}%)")
-    else:
-        st.info("No marks assigned in the comparison.")
+                st.write(f"**{crit}**: {pa}/{mp} - {comm}")
 
 
 ###############################################################################
@@ -604,70 +607,51 @@ def main():
 
         # Compare button
         if st.button("Process & Compare", disabled=not (student_files and scheme_file)):
-            # 1) Convert student files => images => Gemini
-            st.write("Processing Student Answers...")
-            all_student_imgs = []
-            for sf in student_files:
-                pimgs = process_document(sf)
-                all_student_imgs.extend(pimgs)
+            with st.spinner("Processing Student Answers..."):
+                all_student_imgs = []
+                for sf in student_files:
+                    pimgs = process_document(sf)
+                    if not pimgs:
+                        st.error(f"Failed to process {sf.name}.")
+                        continue
+                    all_student_imgs.extend(pimgs)
 
             if not all_student_imgs:
-                st.error("No student images found or failed conversion.")
+                st.error("No valid student images found or conversion failed.")
                 return
 
-            student_content = create_gemini_content(all_student_imgs, "student")
-            student_data = get_gemini_response(student_content, "student")
+            with st.spinner("Extracting student responses..."):
+                student_content = create_gemini_content(all_student_imgs, "student")
+                student_data = get_gemini_response(student_content, "student")
+
             if not student_data:
-                st.error("Failed to parse student data from Gemini.")
+                st.error("Failed to extract student answers from the document.")
                 return
 
-            # 2) Convert mark scheme => images => Gemini
-            st.write("Processing Mark Scheme...")
-            scheme_imgs = process_document(scheme_file)
-            if not scheme_imgs:
-                st.error("No mark scheme images found or failed conversion.")
-                return
+            with st.spinner("Processing Mark Scheme..."):
+                scheme_imgs = process_document(scheme_file)
+                if not scheme_imgs:
+                    st.error("Failed to process mark scheme document.")
+                    return
 
-            scheme_content = create_gemini_content(scheme_imgs, "markscheme")
-            scheme_data = get_gemini_response(scheme_content, "markscheme")
+            with st.spinner("Extracting mark scheme..."):
+                scheme_content = create_gemini_content(scheme_imgs, "markscheme")
+                scheme_data = get_gemini_response(scheme_content, "markscheme")
+
             if not scheme_data:
-                st.error("Failed to parse mark scheme data from Gemini.")
+                st.error("Failed to extract mark scheme data from the document.")
                 return
 
-            # 3) Compare
-            st.write("Comparing Student vs Mark Scheme...")
-            comparison = compare_answers(student_data, scheme_data)
+            with st.spinner("Comparing Student vs Mark Scheme..."):
+                comparison = compare_answers(student_data, scheme_data)
 
-            # 4) Display
+            if not comparison:
+                st.error("Failed to evaluate answers. Please check the input files.")
+                return
+
+            st.success("Processing complete!")
             display_results(comparison)
 
-            # 5) Save to DB
-            db = ExamDatabase()
-            db.save_results(student_id, student_data, comparison)
-
-            # Show prior attempts
-            with st.expander("Previous Attempts for this Student"):
-                prog = db.get_progress_analytics(student_id)
-                if prog["attempts"]:
-                    attempts_df = pd.DataFrame(prog["attempts"],
-                                               columns=["Attempt","Score","Possible","Percentage","Date"])
-                    st.dataframe(attempts_df.style.format({
-                        "Score":"{:.1f}",
-                        "Possible":"{:.1f}",
-                        "Percentage":"{:.1f}%",
-                        "Date":format_date
-                    }))
-                else:
-                    st.info("No previous attempts")
-
-            # Show raw data for debugging
-            with st.expander("Show Raw Data"):
-                st.subheader("Student Data")
-                st.json(student_data)
-                st.subheader("Mark Scheme Data")
-                st.json(scheme_data)
-                st.subheader("Comparison Result")
-                st.json(comparison)
 
 
     elif page == "Analytics":
