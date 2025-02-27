@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "papercheck-2e43e"
+  },
+  "targets": {
+    "papercheck-2e43e": {
+      "hosting": {
+        "default": [
+          "PaperCheck"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
