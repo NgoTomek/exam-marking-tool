@@ -18,6 +18,12 @@ jobs:
         with:
           node-version: 18
 
+      - name: Install dependencies
+        run: npm install  # Change to npm ci if package-lock.json exists
+
+      - name: Build the project
+        run: npm run build  # If your project has a build step
+
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
